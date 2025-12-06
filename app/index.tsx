@@ -1,9 +1,12 @@
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import Map from '../components/Map';
 import { useDatabase } from '../contexts/DatabaseContext';
+import { useLocation } from '../services/location';
+import { notificationManager } from '../services/notifications';
 import { CustomMarker } from '../types';
 
 export default function App() {
@@ -11,6 +14,21 @@ export default function App() {
     const [mapError, setMapError] = useState<string | null>(null);
     const [localMarkers, setLocalMarkers] = useState<CustomMarker[]>([]);
     const router = useRouter();
+    const { location, errorMsg } = useLocation({
+    accuracy: Location.Accuracy.Balanced,
+    timeInterval: 5000, // Обновление каждые 5 секунд
+    distanceInterval: 10, // Минимальное расстояние 10 метров
+    });
+
+    useEffect(() => {
+        notificationManager.setupNotifications();
+    }, []);
+
+    useEffect(() => {
+    if (location && localMarkers.length > 0) {
+      notificationManager.checkProximity(location.coords, localMarkers);
+    }
+    }, [location, localMarkers]);
     
     // Сбрасываем ошибку при успешной загрузке карты
     const handleMapReady = () => {
@@ -74,10 +92,16 @@ export default function App() {
                 showMarkerDetails={showMarkerDetails}
                 onMapReady={handleMapReady}
                 onError={setMapError}
+                userLocation={location}
             />
             {mapError && (
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>{mapError}</Text>
+                </View>
+            )}
+            {errorMsg && (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{errorMsg}</Text>
                 </View>
             )}
         </View>
